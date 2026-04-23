@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Bill of Materials — ERP{% endblock %}
+{% block page_title %}Bill of Materials{% endblock %}
+{% block page_subtitle %}Define the recipe — which materials make each product{% endblock %}
+
+{% block extra_css %}
+<style>
+.bom-product-section { margin-bottom: 24px; }
+.bom-product-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 12px 12px 0 0;
+    border-bottom: none;
+}
+.bom-product-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(232,255,71,0.1); color: var(--accent); display:flex; align-items:center; justify-content:center; }
+.bom-product-name { font-weight: 700; font-size: 15px; }
+.bom-table-wrap { border: 1px solid var(--border); border-radius: 0 0 12px 12px; overflow: hidden; }
+.bom-empty { padding: 20px; text-align: center; color: var(--muted); font-size: 14px; background: var(--surface); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+    <button class="btn btn-primary" onclick="openModal('addBomModal')">
+        <i class="fas fa-plus"></i> Add BOM Entry
+    </button>
+</div>
+
+{% if products %}
+    {% for product in products %}
+    {% set product_bom = bom_entries | selectattr("product_name", "equalto", product.name) | list %}
+    <div class="bom-product-section">
+        <div class="bom-product-header">
+            <div class="bom-product-icon"><i class="fas fa-cube"></i></div>
+            <div class="bom-product-name">{{ product.name }}</div>
+            <span class="badge badge-info" style="margin-left:auto;">{{ product_bom|length }} material(s)</span>
+        </div>
+        <div class="bom-table-wrap">
+            {% if product_bom %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Qty Required (per unit)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in product_bom %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-boxes-stacked" style="color:var(--muted);margin-right:8px;"></i>
+                            {{ entry.material_name }}
+                        </td>
+                        <td>
+                            <strong>{{ entry.quantity_required }}</strong>
+                            <span style="color:var(--muted); font-size:13px;"> {{ entry.unit }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('delete_bom', id=entry.id) }}"
+                               class="btn btn-danger btn-sm"
+                               onclick="return confirm('Remove this BOM entry?')">
+                                <i class="fas fa-trash"></i> Remove
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="bom-empty">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                No materials defined for this product yet.
+                <a href="#" onclick="preselectProduct({{ product.id }}); return false;" style="color:var(--accent);">Add one</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card" style="text-align:center; padding:60px;">
+    <i class="fas fa-diagram-project" style="font-size:48px; color:var(--muted); margin-bottom:16px;"></i>
+    <div style="font-size:18px; font-weight:600;">No products yet</div>
+    <div style="color:var(--muted); margin-top:8px;">Add products first, then define their BOM</div>
+</div>
+{% endif %}
+
+<!-- Add BOM Modal -->
+<div class="modal-overlay" id="addBomModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Add BOM Entry</div>
+            <button class="modal-close" onclick="closeModal('addBomModal')">&times;</button>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">
+            Define how much of a raw material is required to make <strong>1 unit</strong> of a product.
+        </p>
+        <form method="POST" action="{{ url_for('add_bom') }}">
+            <div class="form-group">
+                <label class="form-label">Product *</label>
+                <select name="product_id" id="bomProductSelect" class="form-control" required>
+                    <option value="">Select product...</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Raw Material *</label>
+                <select name="material_id" class="form-control" required>
+                    <option value="">Select material...</option>
+                    {% for m in materials %}
+                    <option value="{{ m.id }}">{{ m.name }} ({{ m.unit }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quantity Required per Unit *</label>
+                <input type="number" name="quantity_required" class="form-control" placeholder="e.g. 5" min="0.01" step="0.01" required/>
+                <div style="font-size:12px; color:var(--muted); margin-top:6px;">
+                    How much of this material is needed to make 1 finished product unit?
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addBomModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Entry</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function preselectProduct(id) {
+    document.getElementById('bomProductSelect').value = id;
+    openModal('addBomModal');
+}
+</script>
+{% endblock %}

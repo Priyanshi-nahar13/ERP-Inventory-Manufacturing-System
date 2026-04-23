@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Manufacturing — ERP{% endblock %}
+{% block page_title %}Manufacturing{% endblock %}
+{% block page_subtitle %}Start a production run — materials are deducted automatically{% endblock %}
+
+{% block extra_css %}
+<style>
+.mfg-layout { display: grid; grid-template-columns: 400px 1fr; gap: 24px; }
+@media(max-width:900px) { .mfg-layout { grid-template-columns: 1fr; } }
+
+.mfg-form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.mfg-form-header { padding: 20px 24px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, rgba(232,255,71,0.05), transparent); }
+.mfg-form-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; display:flex; align-items:center; gap:10px; }
+.mfg-form-body { padding: 24px; }
+
+.check-result {
+    background: var(--surface2); border-radius: 12px; padding: 16px;
+    margin-top: 16px; display: none;
+}
+.check-result.show { display: block; }
+.check-ok { border: 1px solid rgba(74,222,128,0.3); }
+.check-fail { border: 1px solid rgba(248,113,113,0.3); }
+
+.shortage-item { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+.shortage-item:last-child { border-bottom:none; }
+
+.history-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.history-header { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mfg-layout">
+
+    <!-- Manufacturing Form -->
+    <div class="mfg-form-card">
+        <div class="mfg-form-header">
+            <div class="mfg-form-title">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(232,255,71,0.1);display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-industry" style="color:var(--accent);"></i>
+                </div>
+                Start Production Run
+            </div>
+        </div>
+        <div class="mfg-form-body">
+            <div class="form-group">
+                <label class="form-label">Select Product *</label>
+                <select id="prodSelect" class="form-control" onchange="resetCheck()">
+                    <option value="">Choose a product...</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" data-name="{{ p.name }}">{{ p.name }} (Stock: {{ p.stock }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quantity to Manufacture *</label>
+                <input type="number" id="mfgQty" class="form-control" placeholder="e.g., 10" min="1" oninput="resetCheck()" />
+            </div>
+
+            <!-- Check availability button -->
+            <button type="button" class="btn btn-secondary" style="width:100%; margin-bottom:12px;" onclick="checkMaterials()">
+                <i class="fas fa-magnifying-glass"></i> Check Material Availability
+            </button>
+
+            <!-- Check result panel -->
+            <div class="check-result" id="checkResult">
+                <div id="checkContent"></div>
+            </div>
+
+            <!-- Actual production form (only shown if check passes) -->
+            <form method="POST" action="{{ url_for('produce') }}" id="produceForm" style="display:none; margin-top:12px;">
+                <input type="hidden" name="product_id" id="hiddenProdId"/>
+                <input type="hidden" name="quantity" id="hiddenQty"/>
+                <button type="submit" class="btn btn-primary" style="width:100%;">
+                    <i class="fas fa-play"></i> Confirm & Manufacture
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Production History -->
+    <div class="history-card">
+        <div class="history-header">
+            <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700;">Production History</div>
+        </div>
+        <div class="table-wrap">
+            {% if history %}
+            <table>
+                <thead>
+                    <tr><th>#</th><th>Product</th><th>Qty Produced</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    {% for h in history %}
+                    <tr>
+                        <td style="color:var(--muted)">{{ h.id }}</td>
+                        <td><strong>{{ h.product_name }}</strong></td>
+                        <td><span class="badge badge-success">+{{ h.quantity }} units</span></td>
+                        <td style="color:var(--muted)">{{ h.date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align:center; padding:40px; color:var(--muted);">
+                <i class="fas fa-industry" style="font-size:36px; margin-bottom:12px;"></i>
+                <div>No production runs yet</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function resetCheck() {
+    document.getElementById('checkResult').classList.remove('show');
+    document.getElementById('produceForm').style.display = 'none';
+}
+
+async function checkMaterials() {
+    const prodId = document.getElementById('prodSelect').value;
+    const qty    = document.getElementById('mfgQty').value;
+
+    if (!prodId || !qty || qty < 1) {
+        alert('Please select a product and enter a quantity.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('product_id', prodId);
+    formData.append('quantity', qty);
+
+    const res  = await fetch('/manufacturing/check', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    const panel   = document.getElementById('checkResult');
+    const content = document.getElementById('checkContent');
+    panel.classList.add('show');
+    panel.className = 'check-result show ' + (data.ok ? 'check-ok' : 'check-fail');
+
+    if (data.ok) {
+        content.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;color:var(--success);">
+                <i class="fas fa-check-circle fa-lg"></i>
+                <strong>All materials available!</strong>
+            </div>
+            <div style="font-size:13px;color:var(--muted);margin-top:6px;">
+                Click "Confirm & Manufacture" to proceed.
+            </div>`;
+        // Show the submit form
+        document.getElementById('hiddenProdId').value = prodId;
+        document.getElementById('hiddenQty').value = qty;
+        document.getElementById('produceForm').style.display = 'block';
+    } else if (data.shortages) {
+        let html = `<div style="display:flex;align-items:center;gap:10px;color:var(--danger);margin-bottom:12px;">
+            <i class="fas fa-exclamation-circle fa-lg"></i>
+            <strong>Insufficient Materials</strong>
+        </div>`;
+        data.shortages.forEach(s => {
+            html += `<div class="shortage-item">
+                <div>
+                    <div style="font-weight:600;">${s.material}</div>
+                    <div style="font-size:12px;color:var(--muted);">Available: ${s.available} ${s.unit}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:var(--danger);font-weight:600;">Need: ${s.needed} ${s.unit}</div>
+                    <div style="font-size:12px;color:var(--danger);">Short by ${(s.needed-s.available).toFixed(1)}</div>
+                </div>
+            </div>`;
+        });
+        content.innerHTML = html;
+        document.getElementById('produceForm').style.display = 'none';
+    } else {
+        content.innerHTML = `<div style="color:var(--danger);">${data.message}</div>`;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Products — NexaERP{% endblock %}
+{% block page_title %}Products{% endblock %}
+{% block page_subtitle %}Manage your finished goods inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.prod-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.prod-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(232,255,71,0.2);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+}
+.prod-card-top {
+    padding: 24px; background: linear-gradient(135deg, var(--surface2), var(--surface));
+    border-bottom: 1px solid var(--border); text-align: center;
+}
+.prod-icon {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: rgba(232,255,71,0.1); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin: 0 auto 14px;
+}
+.prod-card-name { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; }
+.prod-card-stock {
+    font-family:'Syne',sans-serif; font-size:42px; font-weight:800;
+    color: var(--accent); margin: 4px 0;
+}
+.prod-card-label { font-size:12px; color:var(--muted); }
+.prod-card-body { padding: 16px 20px; }
+.price-row { display:flex; gap:12px; margin-bottom:14px; }
+.price-chip {
+    flex:1; background:var(--surface2); border-radius:10px; padding:10px 12px; text-align:center;
+}
+.price-chip .lbl { font-size:11px; color:var(--muted); margin-bottom:3px; }
+.price-chip .val { font-size:14px; font-weight:600; }
+.price-chip .val.green { color:var(--success); }
+.price-chip .val.blue { color:var(--accent2); }
+.prod-actions { display:flex; gap:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+    <button class="btn btn-primary" onclick="openModal('addProdModal')">
+        <i class="fas fa-plus"></i> Add Product
+    </button>
+</div>
+
+{% if products %}
+<div class="prod-grid">
+    {% for p in products %}
+    <div class="prod-card">
+        <div class="prod-card-top">
+            <div class="prod-icon"><i class="fas fa-cube"></i></div>
+            <div class="prod-card-name">{{ p.name }}</div>
+            <div class="prod-card-stock">{{ p.stock }}</div>
+            <div class="prod-card-label">units in stock</div>
+        </div>
+        <div class="prod-card-body">
+            <div class="price-row">
+                <div class="price-chip">
+                    <div class="lbl">Sell Price</div>
+                    <div class="val green">₹{{ "{:,.0f}".format(p.selling_price) }}</div>
+                </div>
+                <div class="price-chip">
+                    <div class="lbl">Cost Price</div>
+                    <div class="val blue">₹{{ "{:,.0f}".format(p.cost_price) }}</div>
+                </div>
+            </div>
+            <div class="prod-actions">
+                <button class="btn btn-secondary btn-sm" style="flex:1"
+                    onclick="openEditProd({{ p.id }}, '{{ p.name }}', {{ p.selling_price }}, {{ p.cost_price }})">
+                    <i class="fas fa-pen"></i> Edit Prices
+                </button>
+                <a href="{{ url_for('delete_product', id=p.id) }}"
+                   class="btn btn-danger btn-sm btn-icon"
+                   onclick="return confirm('Delete {{ p.name }}? This also removes its BOM entries.')">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:60px;">
+    <i class="fas fa-cubes" style="font-size:48px; color:var(--muted); margin-bottom:16px;"></i>
+    <div style="font-size:18px; font-weight:600;">No products yet</div>
+    <div style="color:var(--muted); margin-top:8px;">Add your first product to begin</div>
+</div>
+{% endif %}
+
+<!-- Add Product Modal -->
+<div class="modal-overlay" id="addProdModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Add New Product</div>
+            <button class="modal-close" onclick="closeModal('addProdModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_product') }}">
+            <div class="form-group">
+                <label class="form-label">Product Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g., Electric Motor" required/>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Initial Stock</label>
+                    <input type="number" name="stock" class="form-control" placeholder="0" min="0"/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Selling Price (₹)</label>
+                    <input type="number" name="selling_price" class="form-control" placeholder="0.00" min="0" step="0.01"/>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Cost Price (₹)</label>
+                <input type="number" name="cost_price" class="form-control" placeholder="0.00" min="0" step="0.01"/>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addProdModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal-overlay" id="editProdModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Edit Product Prices</div>
+            <button class="modal-close" onclick="closeModal('editProdModal')">&times;</button>
+        </div>
+        <form method="POST" id="editProdForm">
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <input type="text" id="editProdName" class="form-control" readonly style="opacity:0.6;"/>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Selling Price (₹)</label>
+                    <input type="number" name="selling_price" id="editSellPrice" class="form-control" min="0" step="0.01" required/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost Price (₹)</label>
+                    <input type="number" name="cost_price" id="editCostPrice" class="form-control" min="0" step="0.01"/>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editProdModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditProd(id, name, sell, cost) {
+    document.getElementById('editProdName').value = name;
+    document.getElementById('editSellPrice').value = sell;
+    document.getElementById('editCostPrice').value = cost;
+    document.getElementById('editProdForm').action = `/products/update/${id}`;
+    openModal('editProdModal');
+}
+</script>
+{% endblock %}

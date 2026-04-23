@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Sales — NexaERP{% endblock %}
+{% block page_title %}Sales{% endblock %}
+{% block page_subtitle %}Record product sales and track revenue{% endblock %}
+
+{% block extra_css %}
+<style>
+.sales-layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; }
+@media(max-width:900px) { .sales-layout { grid-template-columns:1fr; } }
+
+.sell-form-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; position: sticky; top: 20px; }
+.sell-form-header { padding:20px 24px; border-bottom:1px solid var(--border); background:linear-gradient(135deg,rgba(74,222,128,0.05),transparent); }
+.sell-form-title { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; }
+.sell-form-body { padding:24px; }
+
+.rev-big {
+    font-family:'Syne',sans-serif; font-size:36px; font-weight:800;
+    color:var(--success);
+}
+.preview-box {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; padding:14px; margin-top:12px;
+    font-size:14px; display:none;
+}
+.preview-box.show { display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sales-layout">
+
+    <!-- Sell Form -->
+    <div>
+        <!-- Revenue Summary Card -->
+        <div style="background:var(--surface);border:1px solid rgba(74,222,128,0.2);border-radius:16px;padding:20px 24px;margin-bottom:20px;">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Total Revenue</div>
+            <div class="rev-big">₹{{ "{:,.2f}".format(total_revenue) }}</div>
+        </div>
+
+        <div class="sell-form-card">
+            <div class="sell-form-header">
+                <div class="sell-form-title">
+                    <div style="width:36px;height:36px;border-radius:10px;background:rgba(74,222,128,0.1);display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-cart-shopping" style="color:var(--success);"></i>
+                    </div>
+                    New Sale
+                </div>
+            </div>
+            <div class="sell-form-body">
+                <form method="POST" action="{{ url_for('sell') }}">
+                    <div class="form-group">
+                        <label class="form-label">Product *</label>
+                        <select name="product_id" id="saleProduct" class="form-control" onchange="updatePreview()" required>
+                            <option value="">Select product...</option>
+                            {% for p in all_products %}
+                            <option value="{{ p.id }}"
+                                data-stock="{{ p.stock }}"
+                                data-price="{{ p.selling_price }}"
+                                {% if p.stock == 0 %}disabled{% endif %}>
+                                {{ p.name }} — {{ p.stock }} units{% if p.stock == 0 %} (Out of stock){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quantity *</label>
+                        <input type="number" name="quantity" id="saleQty" class="form-control" placeholder="1" min="1" oninput="updatePreview()" required/>
+                    </div>
+
+                    <!-- Sale Preview -->
+                    <div class="preview-box" id="salePreview"></div>
+
+                    <button type="submit" class="btn btn-success" style="width:100%;margin-top:16px;">
+                        <i class="fas fa-check"></i> Record Sale
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales History -->
+    <div class="card" style="height:fit-content;">
+        <div class="card-header">
+            <div class="card-title"><i class="fas fa-receipt" style="color:var(--success);margin-right:8px;"></i>Sales History</div>
+        </div>
+        <div class="table-wrap">
+            {% if history %}
+            <table>
+                <thead>
+                    <tr><th>#</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in history %}
+                    <tr>
+                        <td style="color:var(--muted)">{{ s.id }}</td>
+                        <td><strong>{{ s.product_name }}</strong></td>
+                        <td>{{ s.quantity }}</td>
+                        <td style="color:var(--muted)">₹{{ "{:,.2f}".format(s.unit_price) }}</td>
+                        <td style="color:var(--success);font-weight:600;">₹{{ "{:,.2f}".format(s.total_amount) }}</td>
+                        <td style="color:var(--muted)">{{ s.date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align:center;padding:40px;color:var(--muted);">
+                <i class="fas fa-cart-shopping" style="font-size:36px;margin-bottom:12px;"></i>
+                <div>No sales recorded yet</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePreview() {
+    const sel   = document.getElementById('saleProduct');
+    const qty   = parseInt(document.getElementById('saleQty').value) || 0;
+    const box   = document.getElementById('salePreview');
+
+    if (!sel.value || !qty) { box.classList.remove('show'); return; }
+
+    const opt   = sel.options[sel.selectedIndex];
+    const stock = parseInt(opt.dataset.stock);
+    const price = parseFloat(opt.dataset.price);
+    const total = price * qty;
+
+    box.classList.add('show');
+    if (qty > stock) {
+        box.style.borderColor = 'rgba(248,113,113,0.3)';
+        box.innerHTML = `<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Only <strong>${stock}</strong> units available!</span>`;
+    } else {
+        box.style.borderColor = 'rgba(74,222,128,0.3)';
+        box.innerHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="color:var(--muted);">Unit Price</span>
+                <span>₹${price.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="color:var(--muted);">Quantity</span>
+                <span>${qty}</span>
+            </div>
+            <hr style="border-color:var(--border);margin:8px 0;">
+            <div style="display:flex;justify-content:space-between;">
+                <span style="font-weight:700;">Total</span>
+                <span style="color:var(--success);font-weight:700;font-size:16px;">₹${total.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+            </div>`;
+    }
+}
+</script>
+{% endblock %}

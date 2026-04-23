@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ERP{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Your business at a glance{% endblock %}
+
+{% block extra_css %}
+<style>
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 22px 24px;
+    display: flex; align-items: center; gap: 16px;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.kpi-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.15); }
+.kpi-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+}
+.kpi-icon.yellow { background: rgba(232,255,71,0.12); color: var(--accent); }
+.kpi-icon.blue   { background: rgba(71,201,255,0.12); color: var(--accent2); }
+.kpi-icon.green  { background: rgba(74,222,128,0.12); color: var(--success); }
+.kpi-icon.red    { background: rgba(248,113,113,0.12); color: var(--danger); }
+.kpi-icon.orange { background: rgba(251,191,36,0.12); color: var(--warning); }
+.kpi-val { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 700; }
+.kpi-lbl { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media(max-width:900px) { .two-col { grid-template-columns: 1fr; } }
+
+.alert-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.alert-item:last-child { border-bottom: none; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.alert-dot.red { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.alert-dot.orange { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.alert-mat { font-weight: 500; font-size: 14px; }
+.alert-qty { font-size: 13px; color: var(--muted); }
+.alert-qty span { color: var(--danger); font-weight: 600; }
+
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.prod-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    transition: border-color 0.2s;
+}
+.prod-card:hover { border-color: rgba(232,255,71,0.3); }
+.prod-name { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.prod-stock { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent); }
+.prod-label { font-size: 12px; color: var(--muted); }
+
+.revenue-big {
+    font-family: 'Syne', sans-serif;
+    font-size: 38px; font-weight: 800;
+    color: var(--accent);
+    margin: 8px 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon yellow"><i class="fas fa-boxes-stacked"></i></div>
+        <div>
+            <div class="kpi-val">{{ total_materials }}</div>
+            <div class="kpi-lbl">Material Types</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon blue"><i class="fas fa-cubes"></i></div>
+        <div>
+            <div class="kpi-val">{{ total_stock }}</div>
+            <div class="kpi-lbl">Product Units in Stock</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon green"><i class="fas fa-indian-rupee-sign"></i></div>
+        <div>
+            <div class="kpi-val">₹{{ "{:,.0f}".format(total_revenue) }}</div>
+            <div class="kpi-lbl">Total Revenue</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon orange"><i class="fas fa-industry"></i></div>
+        <div>
+            <div class="kpi-val">{{ total_produced }}</div>
+            <div class="kpi-lbl">Units Produced</div>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-color: {% if low_stock %}rgba(248,113,113,0.3){% else %}var(--border){% endif %}">
+        <div class="kpi-icon red"><i class="fas fa-triangle-exclamation"></i></div>
+        <div>
+            <div class="kpi-val" style="color: {% if low_stock %}var(--danger){% else %}var(--text){% endif %}">{{ low_stock|length }}</div>
+            <div class="kpi-lbl">Low Stock Alerts</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon blue"><i class="fas fa-cart-shopping"></i></div>
+        <div>
+            <div class="kpi-val">{{ total_sales_qty }}</div>
+            <div class="kpi-lbl">Total Units Sold</div>
+        </div>
+    </div>
+</div>
+
+<div class="two-col">
+    <!-- Low Stock Alerts -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-triangle-exclamation" style="color:var(--warning);margin-right:8px;"></i>
+                Low Stock Alerts
+            </div>
+            <a href="{{ url_for('materials') }}" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="card-body">
+            {% if low_stock %}
+                {% for mat in low_stock %}
+                <div class="alert-item">
+                    <div class="alert-dot {% if mat.quantity <= mat.low_stock_threshold * 0.5 %}red{% else %}orange{% endif %}"></div>
+                    <div style="flex:1">
+                        <div class="alert-mat">{{ mat.name }}</div>
+                        <div class="alert-qty">
+                            <span>{{ mat.quantity }} {{ mat.unit }}</span> remaining
+                            (threshold: {{ mat.low_stock_threshold }})
+                        </div>
+                    </div>
+                    {% if mat.quantity <= mat.low_stock_threshold * 0.5 %}
+                    <span class="badge badge-danger">Critical</span>
+                    {% else %}
+                    <span class="badge badge-warning">Low</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center; padding: 30px; color: var(--muted);">
+                <i class="fas fa-check-circle" style="font-size:32px; color:var(--success); margin-bottom:10px;"></i>
+                <div>All materials are well stocked!</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Product Stock -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><i class="fas fa-cubes" style="color:var(--accent2);margin-right:8px;"></i>Product Stock</div>
+            <a href="{{ url_for('products') }}" class="btn btn-secondary btn-sm">Manage</a>
+        </div>
+        <div class="card-body">
+            <div class="product-grid">
+                {% for p in products %}
+                <div class="prod-card">
+                    <div class="prod-name">{{ p.name }}</div>
+                    <div class="prod-stock">{{ p.stock }}</div>
+                    <div class="prod-label">units available</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales -->
+<div class="card" style="margin-top:20px;">
+    <div class="card-header">
+        <div class="card-title"><i class="fas fa-receipt" style="color:var(--success);margin-right:8px;"></i>Recent Sales</div>
+        <a href="{{ url_for('sales') }}" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+        {% if recent_sales %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th><th>Product</th><th>Qty</th>
+                    <th>Amount</th><th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent_sales %}
+                <tr>
+                    <td style="color:var(--muted);">{{ s.id }}</td>
+                    <td><strong>{{ s.product_name }}</strong></td>
+                    <td>{{ s.quantity }}</td>
+                    <td style="color:var(--success); font-weight:600;">₹{{ "{:,.2f}".format(s.total_amount) }}</td>
+                    <td style="color:var(--muted);">{{ s.date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center;padding:30px;color:var(--muted);">No sales recorded yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

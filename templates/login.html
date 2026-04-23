@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ERP — Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <style>
+        :root {
+            --bg: #0d0f14;
+            --surface: #13161e;
+            --border: rgba(255,255,255,0.08);
+            --accent: #e8ff47;
+            --text: #e8eaf2;
+            --muted: #7b8099;
+            --danger: #f87171;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Left panel — branding */
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(135deg, #0d0f14 0%, #131b2e 50%, #0d1a14 100%);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 60px; position: relative; overflow: hidden;
+        }
+        /* Decorative circles */
+        .left-panel::before, .left-panel::after {
+            content:''; position:absolute; border-radius:50%;
+            border: 1px solid rgba(232,255,71,0.1);
+        }
+        .left-panel::before { width: 600px; height: 600px; top:-100px; right:-200px; }
+        .left-panel::after  { width: 400px; height: 400px; bottom:-150px; left:-100px; }
+
+        .brand-icon {
+            width: 72px; height: 72px; border-radius: 20px;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; color: #0d0f14;
+            margin-bottom: 28px;
+            box-shadow: 0 0 60px rgba(232,255,71,0.3);
+            position: relative; z-index: 1;
+        }
+        .brand-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 42px; font-weight: 800;
+            color: var(--text); letter-spacing: -2px;
+            position: relative; z-index: 1;
+        }
+        .brand-title span { color: var(--accent); }
+        .brand-sub {
+            font-size: 16px; color: var(--muted); margin-top: 10px;
+            text-align: center; max-width: 320px;
+            position: relative; z-index: 1; line-height: 1.6;
+        }
+
+        /* Stats chips */
+        .stats-row {
+            display: flex; gap: 16px; margin-top: 48px;
+            position: relative; z-index: 1;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .stat-chip {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px; padding: 14px 20px;
+            text-align: center;
+        }
+        .stat-chip .val { font-size: 22px; font-weight: 700; color: var(--accent); }
+        .stat-chip .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        /* Right panel — form */
+        .right-panel {
+            width: 480px; min-width: 380px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            justify-content: center; padding: 60px 48px;
+        }
+        .login-header { margin-bottom: 36px; }
+        .login-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 28px; font-weight: 700;
+        }
+        .login-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { font-size: 13px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 8px; }
+        .input-wrap { position: relative; }
+        .input-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--muted); font-size: 14px;
+        }
+        .form-control {
+            width: 100%; padding: 13px 14px 13px 42px;
+            background: #1a1e2a; border: 1px solid var(--border);
+            border-radius: 12px; color: var(--text);
+            font-family: 'DM Sans', sans-serif; font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-control:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(232,255,71,0.1);
+        }
+        .form-control::placeholder { color: #4a5066; }
+
+        .login-btn {
+            width: 100%; padding: 14px;
+            background: var(--accent); color: #0d0f14;
+            border: none; border-radius: 12px;
+            font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+            margin-top: 8px;
+        }
+        .login-btn:hover { background: #d4eb30; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,255,71,0.2); }
+        .login-btn:active { transform: translateY(0); }
+
+        .hint {
+            margin-top: 20px; padding: 14px 16px;
+            background: rgba(71,201,255,0.08); border: 1px solid rgba(71,201,255,0.15);
+            border-radius: 10px; font-size: 13px; color: #47c9ff;
+        }
+        .hint strong { display: block; margin-bottom: 4px; }
+
+        .flash-msg {
+            background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25);
+            color: var(--danger); padding: 12px 16px; border-radius: 10px;
+            font-size: 14px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .left-panel { min-height: 300px; padding: 40px 24px; }
+            .right-panel { width: 100%; min-width: unset; padding: 40px 24px; }
+            .brand-title { font-size: 30px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Left branding panel -->
+<div class="left-panel">
+    <div class="brand-icon"><i class="fas fa-cube"></i></div>
+    <!-- CAN GIVE BRAND NAME -->
+    <div class="brand-title"><!--NEXA--><span>ERP</span></div>
+    <div class="brand-sub">Complete Inventory & Manufacturing Management for Modern Businesses</div>
+    <div class="stats-row">
+        <div class="stat-chip">
+            <div class="val">6</div>
+            <div class="lbl">Modules</div>
+        </div>
+        <div class="stat-chip">
+            <div class="val">∞</div>
+            <div class="lbl">Products</div>
+        </div>
+        <div class="stat-chip">
+            <div class="val">Live</div>
+            <div class="lbl">Analytics</div>
+        </div>
+    </div>
+</div>
+
+<!-- Right login panel -->
+<div class="right-panel">
+    <div class="login-header">
+        <div class="login-title">Welcome back 👋</div>
+        <div class="login-sub">Sign in to your ERP dashboard</div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+    <div class="flash-msg"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-group">
+            <label class="form-label">Username</label>
+            <div class="input-wrap">
+                <i class="fas fa-user input-icon"></i>
+                <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus/>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+                <i class="fas fa-lock input-icon"></i>
+                <input type="password" name="password" class="form-control" placeholder="Enter password" required/>
+            </div>
+        </div>
+        <button type="submit" class="login-btn">Sign In &rarr;</button>
+    </form>
+
+    <div class="hint">
+        <strong>🔑 Demo Credentials</strong>
+        Username: <b>admin</b> &nbsp;|&nbsp; Password: <b>admin123</b>
+    </div>
+</div>
+</body>
+</html>

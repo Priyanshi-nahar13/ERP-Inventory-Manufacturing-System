@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Raw Materials — NexaERP{% endblock %}
+{% block page_title %}Raw Materials{% endblock %}
+{% block page_subtitle %}Track and manage your inventory of raw materials{% endblock %}
+
+{% block extra_css %}
+<style>
+.mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.mat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.mat-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.15); }
+.mat-card.low { border-color: rgba(248,113,113,0.3); }
+.mat-card.critical { border-color: rgba(248,113,113,0.6); }
+.mat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.mat-name { font-weight: 600; font-size: 15px; }
+.mat-body { padding: 16px 20px; }
+.mat-qty-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+.mat-qty { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 700; }
+.mat-qty.ok { color: var(--success); }
+.mat-qty.low { color: var(--warning); }
+.mat-qty.critical { color: var(--danger); }
+.mat-unit { color: var(--muted); font-size: 14px; }
+.mat-threshold { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.prog-bar { height: 4px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+.prog-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.mat-actions { display: flex; gap: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+    <button class="btn btn-primary" onclick="openModal('addMatModal')">
+        <i class="fas fa-plus"></i> Add Material
+    </button>
+</div>
+
+<!-- Materials Grid -->
+{% if materials %}
+<div class="mat-grid">
+    {% for mat in materials %}
+    {% set pct = [[(mat.quantity / (mat.low_stock_threshold * 2) * 100)|int, 0]|max, 100]|min %}
+    {% set status = 'ok' if mat.quantity > mat.low_stock_threshold else ('critical' if mat.quantity <= mat.low_stock_threshold * 0.5 else 'low') %}
+    <div class="mat-card {{ status }}">
+        <div class="mat-header">
+            <div class="mat-name">{{ mat.name }}</div>
+            {% if status == 'critical' %}
+            <span class="badge badge-danger"><i class="fas fa-triangle-exclamation"></i> Critical</span>
+            {% elif status == 'low' %}
+            <span class="badge badge-warning">Low Stock</span>
+            {% else %}
+            <span class="badge badge-success">In Stock</span>
+            {% endif %}
+        </div>
+        <div class="mat-body">
+            <div class="mat-qty-row">
+                <div class="mat-qty {{ status }}">{{ mat.quantity|int }}</div>
+                <div class="mat-unit">{{ mat.unit }}</div>
+            </div>
+            <div class="mat-threshold">
+                Threshold: {{ mat.low_stock_threshold }} {{ mat.unit }}
+            </div>
+            <div class="prog-bar">
+                <div class="prog-fill" style="width:{{ pct }}%; background:{% if status == 'ok' %}var(--success){% elif status == 'low' %}var(--warning){% else %}var(--danger){% endif %}"></div>
+            </div>
+            <div class="mat-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openEdit({{ mat.id }}, '{{ mat.name }}', {{ mat.quantity }}, '{{ mat.unit }}', {{ mat.low_stock_threshold }})">
+                    <i class="fas fa-pen"></i> Edit
+                </button>
+                <a href="{{ url_for('delete_material', id=mat.id) }}"
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirm('Delete {{ mat.name }}?')">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:60px;">
+    <i class="fas fa-boxes-stacked" style="font-size:48px; color:var(--muted); margin-bottom:16px;"></i>
+    <div style="font-size:18px; font-weight:600;">No materials yet</div>
+    <div style="color:var(--muted); margin-top:8px;">Add your first raw material to get started</div>
+</div>
+{% endif %}
+
+<!-- Add Material Modal -->
+<div class="modal-overlay" id="addMatModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Add Raw Material</div>
+            <button class="modal-close" onclick="closeModal('addMatModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_material') }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Material Name *</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g., Copper Wire" required/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Quantity *</label>
+                    <input type="number" name="quantity" class="form-control" placeholder="0" min="0" step="0.01" required/>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Unit</label>
+                    <select name="unit" class="form-control">
+                        <option value="units">Units</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="L">Litres</option>
+                        <option value="m">Metres</option>
+                        <option value="pcs">Pieces</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Low Stock Threshold</label>
+                    <input type="number" name="threshold" class="form-control" placeholder="50" min="0" step="0.01"/>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addMatModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Material</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Material Modal -->
+<div class="modal-overlay" id="editMatModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Edit Material</div>
+            <button class="modal-close" onclick="closeModal('editMatModal')">&times;</button>
+        </div>
+        <form method="POST" id="editMatForm">
+            <div class="form-group">
+                <label class="form-label">Material</label>
+                <input type="text" id="editMatName" class="form-control" readonly style="opacity:0.6;"/>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Quantity *</label>
+                    <input type="number" name="quantity" id="editMatQty" class="form-control" min="0" step="0.01" required/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Unit</label>
+                    <select name="unit" id="editMatUnit" class="form-control">
+                        <option value="units">Units</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="L">Litres</option>
+                        <option value="m">Metres</option>
+                        <option value="pcs">Pieces</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Low Stock Threshold</label>
+                <input type="number" name="threshold" id="editMatThreshold" class="form-control" min="0" step="0.01"/>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editMatModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEdit(id, name, qty, unit, threshold) {
+    document.getElementById('editMatName').value = name;
+    document.getElementById('editMatQty').value = qty;
+    document.getElementById('editMatUnit').value = unit;
+    document.getElementById('editMatThreshold').value = threshold;
+    document.getElementById('editMatForm').action = `/materials/update/${id}`;
+    openModal('editMatModal');
+}
+</script>
+{% endblock %}

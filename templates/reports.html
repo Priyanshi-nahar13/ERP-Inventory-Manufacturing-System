@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Reports — NexaERP{% endblock %}
+{% block page_title %}Reports & Profit Analysis{% endblock %}
+{% block page_subtitle %}Understand your business performance{% endblock %}
+
+{% block extra_css %}
+<style>
+.summary-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+@media(max-width:700px) { .summary-row { grid-template-columns:1fr; } }
+.summary-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:24px; text-align:center;
+}
+.summary-label { font-size:13px; color:var(--muted); margin-bottom:6px; }
+.summary-val { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; }
+.summary-val.green { color:var(--success); }
+.summary-val.blue  { color:var(--accent2); }
+.summary-val.red   { color:var(--danger); }
+.summary-val.accent { color:var(--accent); }
+
+.profit-bar-wrap { height: 8px; background:var(--surface2); border-radius:8px; overflow:hidden; margin-top:8px; }
+.profit-bar { height:100%; border-radius:8px; transition: width 0.6s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Summary KPIs -->
+<div class="summary-row">
+    <div class="summary-card" style="border-color:rgba(74,222,128,0.2);">
+        <div class="summary-label">Total Revenue</div>
+        <div class="summary-val green">₹{{ "{:,.0f}".format(total_revenue) }}</div>
+    </div>
+    <div class="summary-card" style="border-color:rgba(71,201,255,0.2);">
+        <div class="summary-label">Total Cost</div>
+        <div class="summary-val blue">₹{{ "{:,.0f}".format(total_cost) }}</div>
+    </div>
+    <div class="summary-card" style="border-color:rgba(232,255,71,0.2);">
+        <div class="summary-label">Net Profit</div>
+        <div class="summary-val {% if total_profit >= 0 %}accent{% else %}red{% endif %}">
+            ₹{{ "{:,.0f}".format(total_profit) }}
+        </div>
+    </div>
+</div>
+
+<!-- Per-product breakdown -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:8px;"></i>Profit by Product</div>
+    </div>
+    <div class="table-wrap">
+        {% if product_profit %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Units Sold</th>
+                    <th>Revenue</th>
+                    <th>Cost</th>
+                    <th>Profit</th>
+                    <th style="width:200px;">Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in product_profit %}
+                {% set margin = (p.profit / p.revenue * 100) if p.revenue > 0 else 0 %}
+                <tr>
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td>{{ p.total_sold }}</td>
+                    <td style="color:var(--success);">₹{{ "{:,.2f}".format(p.revenue) }}</td>
+                    <td style="color:var(--accent2);">₹{{ "{:,.2f}".format(p.cost) }}</td>
+                    <td style="font-weight:700; color:{% if p.profit >= 0 %}var(--accent){% else %}var(--danger){% endif %};">
+                        ₹{{ "{:,.2f}".format(p.profit) }}
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="profit-bar-wrap" style="flex:1">
+                                <div class="profit-bar"
+                                     style="width:{{ [margin|abs, 100]|min }}%;
+                                            background:{% if margin >= 30 %}var(--success){% elif margin >= 10 %}var(--warning){% else %}var(--danger){% endif %};">
+                                </div>
+                            </div>
+                            <span style="font-size:13px;color:var(--muted);min-width:40px;">{{ "%.1f"|format(margin) }}%</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center;padding:40px;color:var(--muted);">No sales data available yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
