@@ -23,6 +23,8 @@ Go to: http://127.0.0.1:5000
 - Username: **admin**
 - Password: **admin123**
 
+### 6. Live on render
+Go to: https://erp-inventory-manufacturing-system-1.onrender.com/
 ---
 
 ## Modules
