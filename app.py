@@ -15,7 +15,7 @@ from functools import wraps
 # Create the Flask application
 app = Flask(__name__)
 # Secret key is needed for sessions (login system)
-app.secret_key = "erp_secret_key_2024"
+app.secret_key = os.environ.get("SECRET_KEY", "erp_secret_key_2024")
 
 # ─────────────────────────────────────────────
 # DATABASE SETUP
@@ -666,11 +666,11 @@ def reports():
 # RUN THE APP
 # ─────────────────────────────────────────────
 
+init_db()
 if __name__ == "__main__":
-    init_db()   # Create tables and sample data on startup
     print("=" * 50)
     print("  ERP System Running!")
     print("  Open: http://127.0.0.1:5000")
     print("  Login: admin / admin123")
     print("=" * 50)
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
